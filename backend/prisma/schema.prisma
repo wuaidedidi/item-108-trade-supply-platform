@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 Int            @id @default(autoincrement())
+  username           String         @unique
+  passwordHash       String
+  name               String
+  role               String         @default("USER")
+  status             String         @default("ACTIVE")
+  email              String?
+  phone              String?
+  quota              Decimal        @default(50000.00)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  products           Product[]      @relation("SupplierProducts")
+  buyerOrders        Order[]        @relation("BuyerOrders")
+  supplierOrders     Order[]        @relation("SupplierOrders")
+  applications       Application[]  @relation("ApplicantApplications")
+  reviewedApps       Application[]  @relation("ReviewerApplications")
+  payments           Payment[]
+  reviews            Review[]
+  notifications      Notification[]
+}
+
+model Product {
+  id          Int           @id @default(autoincrement())
+  name        String
+  category    String
+  description String
+  price       Decimal
+  unit        String
+  status      String        @default("ACTIVE")
+  supplierId  Int
+  supplier    User          @relation("SupplierProducts", fields: [supplierId], references: [id])
+  inventory   Inventory?
+  orders      Order[]
+  reviews     Review[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([supplierId])
+  @@index([category])
+}
+
+model Inventory {
+  id              Int      @id @default(autoincrement())
+  productId       Int      @unique
+  product         Product  @relation(fields: [productId], references: [id])
+  quantity        Int      @default(0)
+  reserved        Int      @default(0)
+  turnoverMonthly Decimal  @default(0.00)
+  warningLevel    Int      @default(20)
+  updatedAt       DateTime @updatedAt
+}
+
+model Order {
+  id           Int          @id @default(autoincrement())
+  orderNo      String       @unique
+  buyerId      Int
+  buyer        User         @relation("BuyerOrders", fields: [buyerId], references: [id])
+  supplierId   Int
+  supplier     User         @relation("SupplierOrders", fields: [supplierId], references: [id])
+  productId    Int
+  product      Product      @relation(fields: [productId], references: [id])
+  quantity     Int
+  unitPrice    Decimal
+  totalAmount  Decimal
+  status       String       @default("PENDING_QUOTE")
+  expectedDate DateTime?
+  remark       String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  payments     Payment[]
+  reviews      Review[]
+
+  @@index([buyerId])
+  @@index([supplierId])
+  @@index([productId])
+  @@index([status])
+}
+
+model Application {
+  id          Int               @id @default(autoincrement())
+  title       String
+  type        String
+  amount      Decimal
+  reason      String
+  applicantId Int
+  applicant   User              @relation("ApplicantApplications", fields: [applicantId], references: [id])
+  reviewerId  Int?
+  reviewer    User?             @relation("ReviewerApplications", fields: [reviewerId], references: [id])
+  status      String            @default("PENDING")
+  comment     String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([applicantId])
+  @@index([reviewerId])
+  @@index([status])
+}
+
+model Payment {
+  id          Int           @id @default(autoincrement())
+  paymentNo   String        @unique
+  orderId     Int
+  order       Order         @relation(fields: [orderId], references: [id])
+  userId      Int
+  user        User          @relation(fields: [userId], references: [id])
+  amount      Decimal
+  status      String        @default("UNPAID")
+  paidAt      DateTime?
+  note        String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  order     Order    @relation(fields: [orderId], references: [id])
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id])
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  rating    Int
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([userId])
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  user      User             @relation(fields: [userId], references: [id])
+  type      String           @default("SYSTEM")
+  title     String
+  content   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+}
